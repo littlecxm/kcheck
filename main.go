@@ -5,11 +5,13 @@ import (
 	"bytes"
 	"crypto/md5"
 	"crypto/sha1"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"github.com/littlecxm/kcheck/kbinxml"
 	"github.com/littlecxm/kcheck/kstruct"
 	"golang.org/x/net/html/charset"
 	"io"
@@ -21,8 +23,13 @@ import (
 	"time"
 )
 
+var builddate, commit string
+
+const MagicNumber = 0xa042
+
 func main() {
-	fmt.Println("kcheck v1.3")
+	fmt.Println("kcheck v1.4")
+	fmt.Printf("build: %s(%s)\n", builddate, commit)
 	fmt.Println("--------")
 	//Workdir,_ := os.Getwd()
 	//Listname := Workdir + "all.list"
@@ -36,11 +43,6 @@ func main() {
 	} else {
 		Listname = "filepath.xml"
 		if _, err := os.Stat(Listname); !os.IsNotExist(err) {
-			fStream, _ := ioutil.ReadFile(Listname)
-			if strings.Index(string(fStream), "<list>") == -1 {
-				//not detect file
-				log.Fatal("filepath.xml load fail")
-			}
 			OfficialType = true
 		} else {
 			Listname = "__metadata.metatxt"
@@ -54,7 +56,7 @@ func main() {
 
 	file, err := os.Open(Listname)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("open file err: ", err)
 	}
 	defer file.Close()
 
@@ -62,12 +64,32 @@ func main() {
 	var fileCount, passCount, failCount int
 
 	if OfficialType {
+		// detect kbin
+		isKbin := false
+		magicNumber := make([]byte, 2)
+		file.Read(magicNumber)
+		if binary.BigEndian.Uint16(magicNumber) == MagicNumber {
+			isKbin = true
+		}
+		file.Seek(0, io.SeekStart)
 		var FilepathStruct kstruct.FilePath
-		decoder := xml.NewDecoder(file)
-		decoder.CharsetReader = charset.NewReaderLabel
-		err = decoder.Decode(&FilepathStruct)
-		if err != nil {
-			log.Fatal(err)
+		if isKbin {
+			kbinByte, _ := ioutil.ReadAll(file)
+			kxml, _, kbinerr := kbinxml.DeserializeKbin(kbinByte)
+			if kbinerr != nil {
+				log.Fatal("kbinerr", kbinerr)
+			}
+			err := xml.Unmarshal(kxml, &FilepathStruct)
+			if err != nil {
+				log.Fatal("xml.Unmarshal: ", err)
+			}
+		} else {
+			decoder := xml.NewDecoder(file)
+			decoder.CharsetReader = charset.NewReaderLabel
+			err = decoder.Decode(&FilepathStruct)
+			if err != nil {
+				log.Fatal("xml.NewDecoder: ", err)
+			}
 		}
 		for _, FileNode := range FilepathStruct.File {
 			fileCount++

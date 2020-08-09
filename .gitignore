@@ -20,3 +20,7 @@
 *build/*
 *.exe
 *.bat
+
+# custom
+*.xml
+*.list
