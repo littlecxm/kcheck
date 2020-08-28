@@ -27,34 +27,50 @@ var builddate, commit string
 
 const MagicNumber = 0xa042
 
+type Option struct {
+	WorkDir      string
+	Listname     string
+	OfficialType bool
+	OfficialMeta bool
+}
+
 func main() {
-	fmt.Println("kcheck v1.4")
+	fmt.Println("kcheck v1.4.1")
 	fmt.Printf("build: %s(%s)\n", builddate, commit)
 	fmt.Println("--------")
-	//Workdir,_ := os.Getwd()
-	//Listname := Workdir + "all.list"
-	Listname := "all.list"
-	CusType := false
-	OfficialType := false
-	OfficialMeta := false
+	Workdir, _ := os.Getwd()
+	opt := &Option{
+		WorkDir:      Workdir,
+		Listname:     "all.list",
+		OfficialType: false,
+		OfficialMeta: false,
+	}
 
-	if _, err := os.Stat(Listname); !os.IsNotExist(err) {
+	CusType := false
+	if _, err := os.Stat(opt.Listname); !os.IsNotExist(err) {
 		CusType = true
 	} else {
-		Listname = "filepath.xml"
-		if _, err := os.Stat(Listname); !os.IsNotExist(err) {
-			OfficialType = true
+		if _, err := os.Stat("data" + string(os.PathSeparator) + "__metadata.metatxt"); !os.IsNotExist(err) {
+			opt.Listname = "data" + string(os.PathSeparator) + "__metadata.metatxt"
+			opt.WorkDir = Workdir + string(os.PathSeparator) + "data" + string(os.PathSeparator)
+			opt.OfficialMeta = true
+		} else if _, err := os.Stat("__metadata.metatxt"); !os.IsNotExist(err) {
+			opt.Listname = "__metadata.metatxt"
+			opt.OfficialMeta = true
 		} else {
-			Listname = "__metadata.metatxt"
-			if _, err := os.Stat(Listname); !os.IsNotExist(err) {
-				OfficialMeta = true
+			if _, err := os.Stat("prop" + string(os.PathSeparator) + "filepath.xml"); !os.IsNotExist(err) {
+				opt.Listname = "prop" + string(os.PathSeparator) + "filepath.xml"
+				opt.OfficialType = true
+			} else if _, err := os.Stat("filepath.xml"); !os.IsNotExist(err) {
+				opt.Listname = "filepath.xml"
+				opt.OfficialType = true
 			} else {
-				OfficialType = false
+				opt.OfficialType = false
 			}
 		}
 	}
 
-	file, err := os.Open(Listname)
+	file, err := os.Open(opt.Listname)
 	if err != nil {
 		log.Fatal("open file err: ", err)
 	}
@@ -63,7 +79,7 @@ func main() {
 	var failures []string
 	var fileCount, passCount, failCount int
 
-	if OfficialType {
+	if opt.OfficialType {
 		// detect kbin
 		isKbin := false
 		magicNumber := make([]byte, 2)
@@ -94,7 +110,7 @@ func main() {
 		for _, FileNode := range FilepathStruct.File {
 			fileCount++
 			FormatPath := strings.TrimPrefix(filepath.FromSlash(FileNode.DstPath), string(os.PathSeparator))
-			if err := CompareFileMD5(FormatPath, FileNode.DstMD5); err != nil {
+			if err := opt.CompareFileMD5(FormatPath, FileNode.DstMD5); err != nil {
 				errstring := "[" + err.Error() + "] "
 				failures = append(failures, errstring+FormatPath)
 				failCount++
@@ -105,10 +121,10 @@ func main() {
 			}
 			fmt.Println(FormatPath)
 		}
-	} else if OfficialMeta {
+	} else if opt.OfficialMeta {
 		//meta
 		//load metadata
-		meta, err := ioutil.ReadFile(Listname)
+		meta, err := ioutil.ReadFile(opt.Listname)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -124,7 +140,7 @@ func main() {
 
 		for _, files := range metaStruct.Files {
 			FormatPath := strings.TrimPrefix(filepath.FromSlash(files.Path), string(os.PathSeparator))
-			if err := CompareFileSHA1(FormatPath, files.SHA1); err != nil {
+			if err := opt.CompareFileSHA1(FormatPath, files.SHA1); err != nil {
 				errstring := "[" + err.Error() + "] "
 				failures = append(failures, errstring+FormatPath)
 				failCount++
@@ -152,7 +168,7 @@ func main() {
 				break
 			}
 			fileCount++
-			if err := CompareFileMD5(words[1], words[0]); err != nil {
+			if err := opt.CompareFileMD5(words[1], words[0]); err != nil {
 				failures = append(failures, words[1])
 				failCount++
 				fmt.Print("[" + err.Error() + "] ")
@@ -189,9 +205,8 @@ func main() {
 	os.Exit(0)
 }
 
-func CompareFileMD5(relativePath, filemd5 string) error {
-	WorkDir, _ := os.Getwd()
-	fpath := WorkDir + string(os.PathSeparator) + relativePath
+func (opt *Option) CompareFileMD5(relativePath, filemd5 string) error {
+	fpath := opt.WorkDir + string(os.PathSeparator) + relativePath
 	if _, err := os.Stat(fpath); err != nil {
 		return errors.New("NOT FOUND")
 	}
@@ -211,9 +226,8 @@ func CompareFileMD5(relativePath, filemd5 string) error {
 	return nil
 }
 
-func CompareFileSHA1(relativePath, filesha1 string) error {
-	WorkDir, _ := os.Getwd()
-	fpath := WorkDir + string(os.PathSeparator) + relativePath
+func (opt *Option) CompareFileSHA1(relativePath, filesha1 string) error {
+	fpath := opt.WorkDir + string(os.PathSeparator) + relativePath
 	if _, err := os.Stat(fpath); err != nil {
 		return errors.New("NOT FOUND")
 	}
