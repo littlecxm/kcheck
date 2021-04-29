@@ -11,9 +11,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/littlecxm/kcheck/kbinxml"
-	"github.com/littlecxm/kcheck/kstruct"
-	"golang.org/x/net/html/charset"
 	"io"
 	"io/ioutil"
 	"log"
@@ -21,6 +18,10 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/littlecxm/kcheck/kbinxml"
+	"github.com/littlecxm/kcheck/kstruct"
+	"golang.org/x/net/html/charset"
 )
 
 var builddate, commit string
@@ -35,7 +36,7 @@ type Option struct {
 }
 
 func main() {
-	fmt.Println("kcheck v1.4.1")
+	fmt.Println("kcheck v1.4.2")
 	fmt.Printf("build: %s(%s)\n", builddate, commit)
 	fmt.Println("--------")
 	Workdir, _ := os.Getwd()
@@ -139,8 +140,16 @@ func main() {
 		fmt.Println("metadata created at:", metaCreateAt)
 
 		for _, files := range metaStruct.Files {
-			FormatPath := strings.TrimPrefix(filepath.FromSlash(files.Path), string(os.PathSeparator))
-			if err := opt.CompareFileSHA1(FormatPath, files.SHA1); err != nil {
+			var fileSHA1 = files.SHA1
+			var filePath = files.Path
+			if fileSHA1 == "" {
+				fileSHA1 = files.SSHA1
+			}
+			if filePath == "" {
+				filePath = files.SPath
+			}
+			FormatPath := strings.TrimPrefix(filepath.FromSlash(filePath), string(os.PathSeparator))
+			if err := opt.CompareFileSHA1(FormatPath, fileSHA1); err != nil {
 				errstring := "[" + err.Error() + "] "
 				failures = append(failures, errstring+FormatPath)
 				failCount++
