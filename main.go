@@ -36,7 +36,7 @@ type Option struct {
 }
 
 func main() {
-	fmt.Println("kcheck v1.4.2")
+	fmt.Println("kcheck v1.4.3")
 	fmt.Printf("build: %s(%s)\n", builddate, commit)
 	fmt.Println("--------")
 	Workdir, _ := os.Getwd()
@@ -58,6 +58,13 @@ func main() {
 		} else if _, err := os.Stat("__metadata.metatxt"); !os.IsNotExist(err) {
 			opt.Listname = "__metadata.metatxt"
 			opt.OfficialMeta = true
+		} else {
+			if _, err := os.Stat("contents" + string(os.PathSeparator) + "allfiles.lst"); !os.IsNotExist(err) {
+				opt.Listname = "contents" + string(os.PathSeparator) + "allfiles.lst"
+				opt.OfficialType = true
+		} else if _, err := os.Stat("allfiles.lst"); !os.IsNotExist(err) {
+				opt.Listname = "allfiles.lst"
+				opt.OfficialType = true
 		} else {
 			if _, err := os.Stat("prop" + string(os.PathSeparator) + "filepath.xml"); !os.IsNotExist(err) {
 				opt.Listname = "prop" + string(os.PathSeparator) + "filepath.xml"
