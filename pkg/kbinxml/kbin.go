@@ -532,9 +532,6 @@ func parseSixbit(reader *bytes.Reader) string {
 func getSegment(reader *bytes.Reader) []byte {
 	length := make([]byte, 4)
 	reader.Read(length)
-	if binary.BigEndian.Uint32(length) > 700000 {
-		panic(strconv.Itoa(int(binary.BigEndian.Uint32(length))))
-	}
 	segment := make([]byte, binary.BigEndian.Uint32(length))
 	reader.Read(segment)
 	return segment

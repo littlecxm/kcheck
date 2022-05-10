@@ -1,4 +1,4 @@
-package kstruct
+package configs
 
 type MetaData struct {
 	CreatedAt int64 `json:"createdAt"`
@@ -18,3 +18,11 @@ type MetaData struct {
 	} `json:"files"`
 }
 
+type KCheckList struct {
+	CreatedAt int64 `json:"createdAt"`
+	Files     []struct {
+		Path string `json:"path"`
+		SHA1 string `json:"sha1"`
+		Size int64  `json:"size"`
+	} `json:"files"`
+}
