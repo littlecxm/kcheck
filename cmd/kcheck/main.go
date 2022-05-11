@@ -10,6 +10,7 @@ import (
 	"github.com/littlecxm/kbinxml-go"
 	"github.com/littlecxm/kcheck/configs"
 	"github.com/littlecxm/kcheck/pkg/checksum"
+	"github.com/littlecxm/kcheck/pkg/utils"
 	"github.com/urfave/cli/v2"
 	"io/ioutil"
 	"log"
@@ -22,7 +23,6 @@ import (
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 var (
-	workDir                      string
 	version, buildDate, commitID string
 	listType, listPath           string
 )
@@ -33,7 +33,7 @@ func main() {
 	app := &cli.App{
 		Name:    "kcheck",
 		Usage:   "check files through list",
-		Version: fmt.Sprintf("%s (built: %s)", commitID, buildDate),
+		Version: fmt.Sprintf("%s %s (built: %s)", version, commitID, buildDate),
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "type",
@@ -105,10 +105,10 @@ func main() {
 							err,
 							formatPath,
 						}
-						printStatus(false, formatPath)
+						utils.PrintStatus(false, formatPath)
 					} else {
 						passCount++
-						printStatus(true, formatPath)
+						utils.PrintStatus(true, formatPath)
 					}
 				}
 				close(res)
@@ -143,10 +143,10 @@ func main() {
 							err,
 							formatPath,
 						}
-						printStatus(false, formatPath)
+						utils.PrintStatus(false, formatPath)
 					} else {
 						passCount++
-						printStatus(true, formatPath)
+						utils.PrintStatus(true, formatPath)
 					}
 				}
 			case configs.KCheckType:
@@ -167,10 +167,10 @@ func main() {
 							err,
 							formatPath,
 						}
-						printStatus(false, formatPath)
+						utils.PrintStatus(false, formatPath)
 					} else {
 						passCount++
-						printStatus(true, formatPath)
+						utils.PrintStatus(true, formatPath)
 					}
 				}
 			default:
@@ -192,15 +192,4 @@ func main() {
 		log.Println(err)
 		os.Exit(1)
 	}
-}
-
-func printStatus(isSuccess bool, path string) {
-	successDisp := color.New(color.Bold, color.FgWhite, color.BgGreen).FprintfFunc()
-	failedDisp := color.New(color.Bold, color.FgWhite, color.BgRed).FprintfFunc()
-	if isSuccess {
-		successDisp(color.Output, "[PASSED]")
-	} else {
-		failedDisp(color.Output, "[FAILED]")
-	}
-	fmt.Println(" ", path)
 }

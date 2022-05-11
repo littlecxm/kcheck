@@ -8,8 +8,10 @@ GOARCH ?= amd64
 all: fmt build
 build:
 	@go mod download
-	@echo build kcheck..
+	@echo build kcheck...
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -o build/ -ldflags "-s -X \"main.version=${VERSION}\" -X \"main.buildDate=${BUILD_DATE}\" -X \"main.commitID=${SHA_SHORT}\"" -v ./cmd/kcheck
+	@echo build makecheck...
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -o build/ -ldflags "-s -X \"main.version=${VERSION}\" -X \"main.buildDate=${BUILD_DATE}\" -X \"main.commitID=${SHA_SHORT}\"" -v ./cmd/makecheck
 windows: GOOS=windows
 windows: GOARCH=amd64
 windows: build
