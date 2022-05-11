@@ -44,7 +44,7 @@ func main() {
 		},
 		Action: func(c *cli.Context) error {
 			if c.NArg() == 0 {
-				listPath = guessPath()
+				listPath = guessListPath()
 				if listPath == "" {
 					fmt.Println("failed to guess input list, please specify the path")
 					fmt.Fprintln(color.Output, "use",

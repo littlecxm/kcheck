@@ -11,9 +11,15 @@ import (
 	"strings"
 )
 
-func guessPath() string {
-	metaDefaultPath := filepath.Join(workDir, "data", "__metadata.metatxt")
-	kbinDefaultPath := filepath.Join(workDir, "prop", "filepath.xml")
+// guessListPath get the relative path of the list file
+func guessListPath() string {
+	allLstDefaultPath := "allfiles.lst"
+	metaDefaultPath := filepath.Join("data", "__metadata.metatxt")
+	kbinDefaultPath := filepath.Join("prop", "filepath.xml")
+	if _, err := os.Stat(allLstDefaultPath); err == nil {
+		log.Println("use default allfiles list:", allLstDefaultPath)
+		return allLstDefaultPath
+	}
 	if _, err := os.Stat(metaDefaultPath); err == nil {
 		log.Println("use default metadata list:", metaDefaultPath)
 		return metaDefaultPath
