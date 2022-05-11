@@ -55,10 +55,14 @@ func main() {
 				}
 			}
 			if c.NArg() > 0 {
-				listPath = c.Args().Get(0)
+				manualPath := c.Args().Get(0)
+				listPath = filepath.Base(manualPath)
+				configs.WorkDir = filepath.Dir(manualPath)
 			}
+			log.Println("current work dir:", configs.WorkDir)
+			log.Println("list path:", listPath)
 
-			f, err := os.Open(listPath)
+			f, err := os.Open(filepath.Join(configs.WorkDir, listPath))
 			inByte, err := ioutil.ReadAll(f)
 			if err != nil {
 				log.Fatalf("load file error: %s", err)
