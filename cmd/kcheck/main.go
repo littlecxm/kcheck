@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/md5"
+	"crypto/sha1"
 	"fmt"
 	"github.com/beevik/etree"
 	"github.com/fatih/color"
@@ -71,10 +73,7 @@ func main() {
 			// report handler
 			res := make(chan *CheckResult, 999)
 			go handler(res)
-			successDisp := color.New(color.Bold, color.FgWhite, color.BgGreen).FprintfFunc()
-			failedDisp := color.New(color.Bold, color.FgWhite, color.BgRed).FprintfFunc()
 			var fCount, passCount, failCount = 0, 0, 0
-
 			switch listType {
 			case configs.KBinType:
 				kxml, _, err := kbinxml.DeserializeKbin(inByte)
@@ -95,19 +94,18 @@ func main() {
 					dstPath := fNode.SelectElement("dst_path").Text()
 					dstMd5 := fNode.SelectElement("dst_md5").Text()
 					formatPath := strings.TrimPrefix(filepath.FromSlash(dstPath), string(os.PathSeparator))
-					if err := checksum.CompareFileMD5(formatPath, dstMd5); err != nil {
+					if err := checksum.CheckByHash(formatPath, dstMd5, md5.New()); err != nil {
 						failCount++
 						res <- &CheckResult{
 							false,
 							err,
 							formatPath,
 						}
-						failedDisp(color.Output, "[FAILED]")
+						printStatus(false, formatPath)
 					} else {
 						passCount++
-						successDisp(color.Output, "[PASSED]")
+						printStatus(true, formatPath)
 					}
-					fmt.Println(" ", formatPath)
 				}
 				close(res)
 			case configs.MetadataType:
@@ -134,19 +132,18 @@ func main() {
 						"data",
 						strings.TrimPrefix(filepath.FromSlash(filePath), string(os.PathSeparator)),
 					)
-					if err := checksum.CompareFileSHA1(formatPath, fileSHA1); err != nil {
+					if err := checksum.CheckByHash(formatPath, fileSHA1, sha1.New()); err != nil {
 						failCount++
 						res <- &CheckResult{
 							false,
 							err,
 							formatPath,
 						}
-						failedDisp(color.Output, "[FAILED]")
+						printStatus(false, formatPath)
 					} else {
 						passCount++
-						successDisp(color.Output, "[PASSED]")
+						printStatus(true, formatPath)
 					}
-					fmt.Println(" ", formatPath)
 				}
 			case configs.KCheckType:
 				var kcheckList configs.KCheckList
@@ -159,19 +156,18 @@ func main() {
 				fmt.Println("KCheck list created at:", metaCreateAt)
 				for _, files := range kcheckList.Files {
 					formatPath := strings.TrimPrefix(filepath.FromSlash(files.Path), string(os.PathSeparator))
-					if err := checksum.CompareFileSHA1(formatPath, files.SHA1); err != nil {
+					if err := checksum.CheckByHash(formatPath, files.SHA1, sha1.New()); err != nil {
 						failCount++
 						res <- &CheckResult{
 							false,
 							err,
 							formatPath,
 						}
-						failedDisp(color.Output, "[FAILED]")
+						printStatus(false, formatPath)
 					} else {
 						passCount++
-						successDisp(color.Output, "[PASSED]")
+						printStatus(true, formatPath)
 					}
-					fmt.Println(" ", formatPath)
 				}
 			default:
 				log.Fatalf("unknown type: %s", listType)
@@ -192,4 +188,15 @@ func main() {
 		log.Println(err)
 		os.Exit(1)
 	}
+}
+
+func printStatus(isSuccess bool, path string) {
+	successDisp := color.New(color.Bold, color.FgWhite, color.BgGreen).FprintfFunc()
+	failedDisp := color.New(color.Bold, color.FgWhite, color.BgRed).FprintfFunc()
+	if isSuccess {
+		successDisp(color.Output, "[PASSED]")
+	} else {
+		failedDisp(color.Output, "[FAILED]")
+	}
+	fmt.Println(" ", path)
 }

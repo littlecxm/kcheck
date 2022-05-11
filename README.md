@@ -25,7 +25,7 @@ make `kcheck.list`
   ]
 }
 ```
-## ⤴️Output
+## ⤴️ Output
 If some files got failed, a `failed.list` file will be generated automatically
 
 ## License
