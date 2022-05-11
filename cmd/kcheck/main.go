@@ -93,7 +93,7 @@ func main() {
 				fCount = len(listNode.ChildElements())
 				for _, fNode := range listNode.SelectElements("file") {
 					dstPath := fNode.SelectElement("dst_path").Text()
-					dstMd5 := fNode.SelectElement("dst_path").Text()
+					dstMd5 := fNode.SelectElement("dst_md5").Text()
 					formatPath := strings.TrimPrefix(filepath.FromSlash(dstPath), string(os.PathSeparator))
 					if err := checksum.CompareFileMD5(formatPath, dstMd5); err != nil {
 						failCount++
