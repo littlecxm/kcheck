@@ -23,12 +23,14 @@ import (
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 var (
-	version, buildDate, commitID string
-	listType, listPath           string
+	version   = "bleeding-edge"
+	buildDate = "0000-00-00 00:00:00"
+	commitID  = "*******"
+	listType  string
 )
 
 func main() {
-	fmt.Printf("kcheck %s\n", version)
+	fmt.Printf("kcheck (%s)\n", version)
 	configs.WorkDir, _ = os.Getwd()
 	app := &cli.App{
 		Name:    "kcheck",
@@ -38,22 +40,22 @@ func main() {
 			&cli.StringFlag{
 				Name:        "type",
 				Aliases:     []string{"t"},
-				Usage:       "input list `TYPE`, support: `kbin`,`xml`,`metadata`,`kcheck`",
+				Usage:       "input list `TYPE`, support: `kbin`, `xml`, `metadata`, `kcheck`",
 				Destination: &listType,
 			},
 		},
 		Action: func(c *cli.Context) error {
 			if c.NArg() == 0 {
-				listPath = guessListPath()
-				if listPath == "" {
-					fmt.Println("failed to guess input list, please specify the path")
-					fmt.Fprintln(color.Output, "use",
-						color.GreenString("help"),
-						"to get more info",
-					)
+				listPath, err := guessListPath()
+				if err != nil {
+					fmt.Println(err)
+					_, _ = fmt.Fprintln(color.Output, "use", color.GreenString("help"), "to get more info")
 					os.Exit(-1)
 				}
+				log.Println("use default file:", listPath)
 			}
+
+			var listPath string
 			if c.NArg() > 0 {
 				manualPath := c.Args().Get(0)
 				listPath = filepath.Base(manualPath)
@@ -63,15 +65,23 @@ func main() {
 			log.Println("list path:", listPath)
 
 			f, err := os.Open(filepath.Join(configs.WorkDir, listPath))
-			inByte, err := ioutil.ReadAll(f)
 			if err != nil {
-				log.Fatalf("load file error: %s", err)
+				log.Fatalf("faild open file: %s", err)
 			}
+			defer func() {
+				_ = f.Close()
+			}()
+
 			if listType == "" {
-				listType, err = guessType()
+				listType, err = guessType(listPath)
 				if err != nil {
 					log.Fatalf("get list type error: %s", err)
 				}
+			}
+
+			inByte, err := ioutil.ReadAll(f)
+			if err != nil {
+				log.Fatalf("load file error: %s", err)
 			}
 
 			// report handler
@@ -114,24 +124,25 @@ func main() {
 				close(res)
 			case configs.MetadataType:
 				var metaStruct configs.MetaData
-				err = json.Unmarshal(inByte, &metaStruct)
-				if err != nil {
+
+				if err := json.Unmarshal(inByte, &metaStruct); err != nil {
 					log.Fatal("load metadata list err:", err)
 				}
+
 				metaCreateAt := time.Unix(0, metaStruct.CreatedAt*int64(time.Millisecond))
 				fCount = len(metaStruct.Files)
 				log.Println("metadata created at:", metaCreateAt)
 				for _, files := range metaStruct.Files {
-					var (
-						fileSHA1 = files.SHA1
-						filePath = files.Path
-					)
+					fileSHA1 := files.SHA1
 					if fileSHA1 == "" {
 						fileSHA1 = files.SSHA1
 					}
+
+					filePath := files.Path
 					if filePath == "" {
 						filePath = files.SPath
 					}
+
 					formatPath := filepath.Join(
 						"data",
 						strings.TrimPrefix(filepath.FromSlash(filePath), string(os.PathSeparator)),
@@ -149,10 +160,10 @@ func main() {
 						utils.PrintStatus(true, formatPath)
 					}
 				}
+
 			case configs.KCheckType:
 				var kcheckList configs.KCheckList
-				err = json.Unmarshal(inByte, &kcheckList)
-				if err != nil {
+				if err := json.Unmarshal(inByte, &kcheckList); err != nil {
 					log.Fatal("load KCheck list err:", err)
 				}
 				metaCreateAt := time.Unix(0, kcheckList.CreatedAt*int64(time.Millisecond))
@@ -173,12 +184,19 @@ func main() {
 						utils.PrintStatus(true, formatPath)
 					}
 				}
+
 			default:
 				log.Fatalf("unknown type: %s", listType)
 			}
-			fmt.Println("Finished.")
-			fmt.Println("ALL:", fCount, "/", "PASS:", passCount, "/", "FAIL:", failCount)
-			fmt.Println("Exit after 5 seconds...")
+
+			fmt.Printf(
+				"Finished.\n"+
+					"ALL: %d / PASS: %d / FAIL: %d\n"+
+					"Exit after 5 seconds...",
+				fCount,
+				passCount,
+				failCount,
+			)
 			time.Sleep(5 * time.Second)
 			return nil
 		},
@@ -187,8 +205,7 @@ func main() {
 	sort.Sort(cli.FlagsByName(app.Flags))
 	sort.Sort(cli.CommandsByName(app.Commands))
 
-	err := app.Run(os.Args)
-	if err != nil {
+	if err := app.Run(os.Args); err != nil {
 		log.Println(err)
 		os.Exit(1)
 	}

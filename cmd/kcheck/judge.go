@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"encoding/binary"
+	"errors"
 	"github.com/littlecxm/kcheck/configs"
+	"github.com/littlecxm/kcheck/pkg/utils"
 	"io/ioutil"
 	"log"
 	"os"
@@ -11,47 +13,46 @@ import (
 	"strings"
 )
 
-// guessListPath get the relative path of the list file
-func guessListPath() string {
-	allLstDefaultPath := "allfiles.lst"
-	metaDefaultPath := filepath.Join("data", "__metadata.metatxt")
-	kbinDefaultPath := filepath.Join("prop", "filepath.xml")
-	if _, err := os.Stat(allLstDefaultPath); err == nil {
-		log.Println("use default allfiles list:", allLstDefaultPath)
-		return allLstDefaultPath
+func getDefaultPaths() []string {
+	return []string{
+		"allfiles.lst",
+		filepath.Join("data", "__metadata.metatxt"),
+		filepath.Join("prop", "filepath.xml"),
 	}
-	if _, err := os.Stat(metaDefaultPath); err == nil {
-		log.Println("use default metadata list:", metaDefaultPath)
-		return metaDefaultPath
-	}
-	if _, err := os.Stat(kbinDefaultPath); err == nil {
-		log.Println("use default filepath list:", kbinDefaultPath)
-		return kbinDefaultPath
-	}
-	return ""
 }
 
-func guessType() (string, error) {
-	file, err := os.Open(filepath.Join(configs.WorkDir, listPath))
-	bufr := bufio.NewReader(file)
-	// kbin
+// guessListPath get the relative path of the list file
+func guessListPath() (string, error) {
+	for _, p := range getDefaultPaths() {
+		if utils.FileExists(p) {
+			return p, nil
+		}
+	}
+	return "", errors.New("failed to guess input list, please specify the path")
+}
+
+func guessType(list string) (string, error) {
+	file, err := os.Open(filepath.Join(configs.WorkDir, list))
+	buff := bufio.NewReader(file)
+
+	// check like kbin
 	magicNumber := make([]byte, 2)
-	_, err = bufr.Read(magicNumber)
-	if err != nil {
+	if _, err := buff.Read(magicNumber); err != nil {
 		return "", err
 	}
 	if binary.BigEndian.Uint16(magicNumber) == configs.KBinMagicNumber {
 		return configs.KBinType, nil
 	}
-	// ioutil
-	bf, err := ioutil.ReadFile(listPath)
+
+	// detect type
+	rb, err := ioutil.ReadFile(list)
 	if err != nil {
 		return "", err
 	}
-	if strings.Contains(string(bf), "<?xml version") {
+	if strings.HasPrefix(string(rb), "<?xml version") {
 		return configs.XMLType, nil
 	}
-	if strings.Contains(string(bf), "createdAt") {
+	if strings.Contains(string(rb), "createdAt") {
 		return configs.MetadataType, nil
 	}
 	log.Println("unknown file type, use default:", configs.KCheckType)
