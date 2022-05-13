@@ -13,7 +13,7 @@ type CheckResult struct {
 	Path    string
 }
 
-func handler(res chan *CheckResult) {
+func reportHandler(res chan *CheckResult) {
 	file, err := os.OpenFile("failed.list", os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		log.Fatalf("failed creating result log: %s", err)

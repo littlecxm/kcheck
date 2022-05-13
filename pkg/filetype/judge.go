@@ -1,4 +1,4 @@
-package main
+package filetype
 
 import (
 	"bufio"
@@ -7,12 +7,12 @@ import (
 	"github.com/littlecxm/kcheck/configs"
 	"github.com/littlecxm/kcheck/pkg/utils"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
+// getDefaultPaths are return file list paths
 func getDefaultPaths() []string {
 	return []string{
 		"allfiles.lst",
@@ -21,8 +21,8 @@ func getDefaultPaths() []string {
 	}
 }
 
-// guessListPath get the relative path of the list file
-func guessListPath() (string, error) {
+// GuessListPath get the relative path of the list file
+func GuessListPath() (string, error) {
 	for _, p := range getDefaultPaths() {
 		if utils.FileExists(p) {
 			return p, nil
@@ -31,7 +31,7 @@ func guessListPath() (string, error) {
 	return "", errors.New("failed to guess input list, please specify the path")
 }
 
-func guessType(list string) (string, error) {
+func GuessType(list string) (string, error) {
 	file, err := os.Open(filepath.Join(configs.WorkDir, list))
 	buff := bufio.NewReader(file)
 
@@ -49,12 +49,13 @@ func guessType(list string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if strings.HasPrefix(string(rb), "<?xml version") {
+	if strings.HasPrefix(string(rb), "<?xml ") {
 		return configs.XMLType, nil
 	}
 	if strings.Contains(string(rb), "createdAt") {
 		return configs.MetadataType, nil
 	}
-	log.Println("unknown file type, use default:", configs.KCheckType)
+
+	// default
 	return configs.KCheckType, nil
 }
