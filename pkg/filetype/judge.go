@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/littlecxm/kcheck/configs"
-	"github.com/littlecxm/kcheck/pkg/utils"
+	"github.com/littlecxm/kcheck/pkg/fileutil"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -24,7 +24,7 @@ func getDefaultPaths() []string {
 // GuessListPath get the relative path of the list file
 func GuessListPath() (string, error) {
 	for _, p := range getDefaultPaths() {
-		if utils.FileExists(p) {
+		if fileutil.FileExists(p) {
 			return p, nil
 		}
 	}

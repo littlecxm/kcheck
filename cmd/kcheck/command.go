@@ -10,6 +10,7 @@ import (
 	"github.com/littlecxm/kcheck/configs"
 	"github.com/littlecxm/kcheck/pkg/checksum"
 	"github.com/littlecxm/kcheck/pkg/filetype"
+	"github.com/littlecxm/kcheck/pkg/reporter"
 	"github.com/littlecxm/kcheck/pkg/utils"
 	"github.com/urfave/cli/v2"
 	"io/ioutil"
@@ -26,8 +27,7 @@ func commandHandler(c *cli.Context) error {
 	if c.NArg() == 0 {
 		listPath, err := filetype.GuessListPath()
 		if err != nil {
-			fmt.Println(err)
-			_, _ = fmt.Fprintln(color.Output, "use", color.GreenString("help"), "to get more info")
+			fmt.Println("use", color.GreenString("help"), "to get more info")
 			os.Exit(-1)
 		}
 		log.Println("use default file:", listPath)
@@ -66,8 +66,8 @@ func commandHandler(c *cli.Context) error {
 	}
 
 	// report handler
-	res := make(chan *CheckResult, 999)
-	go reportHandler(res)
+	res := make(chan *reporter.CheckResult, 999)
+	go reporter.Handler("failed.list", res)
 	var fCount, passCount, failCount = 0, 0, 0
 	switch listType {
 	case configs.KBinType:
@@ -86,16 +86,16 @@ func commandHandler(c *cli.Context) error {
 		// check
 		listNode := doc.FindElement("list")
 		fCount = len(listNode.ChildElements())
+		hasher := md5.New()
 		for _, fNode := range listNode.SelectElements("file") {
 			dstPath := fNode.SelectElement("dst_path").Text()
 			dstMd5 := fNode.SelectElement("dst_md5").Text()
 			formatPath := strings.TrimPrefix(filepath.FromSlash(dstPath), string(os.PathSeparator))
-			if err := checksum.CheckByHash(formatPath, dstMd5, md5.New()); err != nil {
+			if err := checksum.CheckByHash(formatPath, dstMd5, hasher); err != nil {
 				failCount++
-				res <- &CheckResult{
-					false,
-					err,
-					formatPath,
+				res <- &reporter.CheckResult{
+					Error: err,
+					Path:  formatPath,
 				}
 				utils.PrintStatus(false, formatPath)
 			} else {
@@ -114,6 +114,7 @@ func commandHandler(c *cli.Context) error {
 
 		metaCreateAt := time.Unix(0, metaStruct.CreatedAt*int64(time.Millisecond))
 		fCount = len(metaStruct.Files)
+		hasher := sha1.New()
 		log.Println("metadata created at:", metaCreateAt)
 		for _, files := range metaStruct.Files {
 			fileSHA1 := files.SHA1
@@ -130,12 +131,11 @@ func commandHandler(c *cli.Context) error {
 				"data",
 				strings.TrimPrefix(filepath.FromSlash(filePath), string(os.PathSeparator)),
 			)
-			if err := checksum.CheckByHash(formatPath, fileSHA1, sha1.New()); err != nil {
+			if err := checksum.CheckByHash(formatPath, fileSHA1, hasher); err != nil {
 				failCount++
-				res <- &CheckResult{
-					false,
-					err,
-					formatPath,
+				res <- &reporter.CheckResult{
+					Error: err,
+					Path:  formatPath,
 				}
 				utils.PrintStatus(false, formatPath)
 			} else {
@@ -151,15 +151,15 @@ func commandHandler(c *cli.Context) error {
 		}
 		metaCreateAt := time.Unix(0, kcheckList.CreatedAt*int64(time.Millisecond))
 		fCount = len(kcheckList.Files)
+		hasher := sha1.New()
 		fmt.Println("KCheck list created at:", metaCreateAt)
 		for _, files := range kcheckList.Files {
 			formatPath := strings.TrimPrefix(filepath.FromSlash(files.Path), string(os.PathSeparator))
-			if err := checksum.CheckByHash(formatPath, files.SHA1, sha1.New()); err != nil {
+			if err := checksum.CheckByHash(formatPath, files.SHA1, hasher); err != nil {
 				failCount++
-				res <- &CheckResult{
-					false,
-					err,
-					formatPath,
+				res <- &reporter.CheckResult{
+					Error: err,
+					Path:  formatPath,
 				}
 				utils.PrintStatus(false, formatPath)
 			} else {
