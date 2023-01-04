@@ -24,16 +24,17 @@ import (
 func commandHandler(c *cli.Context) error {
 	fmt.Printf("kcheck (%s)\n", version)
 
+	var listPath string
 	if c.NArg() == 0 {
-		listPath, err := filetype.GuessListPath()
+		guessListPath, err := filetype.GuessListPath()
 		if err != nil {
 			fmt.Println("use", color.GreenString("help"), "to get more info")
 			os.Exit(-1)
 		}
+		listPath = guessListPath
 		log.Println("use default file:", listPath)
 	}
 
-	var listPath string
 	if c.NArg() > 0 {
 		manualPath := c.Args().Get(0)
 		listPath = filepath.Base(manualPath)
