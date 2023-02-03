@@ -12,9 +12,9 @@ import (
 	"path/filepath"
 )
 
-func CheckByHash(relativePath, hashStr string, hasher hash.Hash) error {
+func CheckByHash(relativePath, hashStr string, h hash.Hash) error {
 	defer func() {
-		hasher.Reset()
+		h.Reset()
 	}()
 
 	fPath := filepath.Join(configs.WorkDir, relativePath)
@@ -31,12 +31,12 @@ func CheckByHash(relativePath, hashStr string, hasher hash.Hash) error {
 		_ = f.Close()
 	}()
 
-	if _, err := io.Copy(hasher, f); err != nil {
+	if _, err := io.Copy(h, f); err != nil {
 		return errors.New("failed copy buffer")
 	}
 
 	byteHash, _ := hex.DecodeString(hashStr)
-	if bytes.Compare(hasher.Sum(nil), byteHash) != 0 {
+	if bytes.Compare(h.Sum(nil), byteHash) != 0 {
 		return errors.New("CHECK FAIL")
 	}
 	return nil

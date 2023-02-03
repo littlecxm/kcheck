@@ -20,6 +20,8 @@
 *dist/*
 *.exe
 *.bat
+kcheck
+makecheck
 
 # custom
 *.xml

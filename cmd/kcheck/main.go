@@ -23,12 +23,18 @@ func main() {
 	app := &cli.App{
 		Name:    "kcheck",
 		Usage:   "check files through list",
-		Version: fmt.Sprintf("%s %s (built: %s)", version, commitID, buildDate),
+		Version: version,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "type",
-				Aliases:     []string{"t"},
-				Usage:       "input list `TYPE`, support: `kbin`, `xml`, `metadata`, `kcheck`",
+				Name:    "type",
+				Aliases: []string{"t"},
+				Usage: fmt.Sprintf(
+					"input list `TYPE`, support: `%s`, `%s`, `%s`, `%s`",
+					configs.KCheckType,
+					configs.XMLType,
+					configs.KBinType,
+					configs.MetadataType,
+				),
 				Destination: &listType,
 			},
 		},
