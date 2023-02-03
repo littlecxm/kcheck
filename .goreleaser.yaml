@@ -1,0 +1,69 @@
+before:
+  hooks:
+    - go mod tidy
+    - go clean
+
+builds:
+  - id: "kcheck"
+    env:
+      - CGO_ENABLED=0
+    goos: [ windows ]
+    goarch: [ amd64, 386 ]
+    main: ./cmd/kcheck
+    binary: kcheck
+    ldflags:
+      - -s -w -X main.version=v{{.Version}} -X main.commitID={{.ShortCommit}} -X main.buildDate={{.Date}}
+  - id: "makecheck"
+    env:
+      - CGO_ENABLED=0
+    targets:
+      - linux_amd64_v1
+      - windows_amd64_v1
+      - darwin_arm64
+    main: ./cmd/makecheck
+    binary: makecheck
+    ldflags:
+      - -s -w -X main.version=v{{.Version}} -X main.commitID={{.ShortCommit}} -X main.buildDate={{.Date}}
+
+archives:
+  - id: "updater-archive"
+    builds: [ "updater" ]
+    name_template: >-
+      {{ .Binary }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+  - id: "updater-tool-archive"
+    builds: [ "updater-tool" ]
+    name_template: >-
+      {{ .Binary }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+# The lines beneath this are called `modelines`. See `:help modeline`
+# Feel free to remove those if you don't want/use them.
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj

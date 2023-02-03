@@ -1,0 +1,30 @@
+name: Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GO111MODULE: auto
+      GOOS: windows
+      GOARCH: amd64
+      TZ: Asia/Shanghai
+
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '>=1.19.0'
+
+      - uses: actions/checkout@v2
+
+      - name: Build kcheck
+        run: go build -v ./cmd/kcheck
+
+      - name: Build makecheck
+        run: go build -v ./cmd/makecheck

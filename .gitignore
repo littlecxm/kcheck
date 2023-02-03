@@ -17,7 +17,7 @@
 
 # build
 *build/*
-*build/*
+*dist/*
 *.exe
 *.bat
 
