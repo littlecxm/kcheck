@@ -9,7 +9,6 @@ import (
 	"github.com/littlecxm/kcheck/pkg/utils"
 	"github.com/urfave/cli/v2"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -18,7 +17,7 @@ import (
 )
 
 func commandHandler(c *cli.Context) error {
-	fmt.Printf("makecheck (%s)\n", version)
+	fmt.Sprintf("makecheck %s %s (built: %s)", version, commitID, buildDate)
 
 	if c.NArg() == 0 {
 		cli.ShowAppHelpAndExit(c, 0)
@@ -30,7 +29,9 @@ func commandHandler(c *cli.Context) error {
 	h := sha1.New()
 	var kcheckList configs.KCheckList
 	res := make(chan *reporter.CheckResult, 999)
+
 	go reporter.Handler("failed_make.list", res)
+
 	err := filepath.Walk(srcDir, func(filePath string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -46,9 +47,8 @@ func commandHandler(c *cli.Context) error {
 		_, err = io.Copy(h, f)
 		if err != nil {
 			res <- &reporter.CheckResult{
-				false,
-				err,
-				srcPath,
+				Error: err,
+				Path:  srcPath,
 			}
 			utils.PrintStatus(false, srcPath)
 			return err
@@ -68,7 +68,7 @@ func commandHandler(c *cli.Context) error {
 	} else {
 		outBytes, err = json.MarshalIndent(kcheckList, "", " ")
 	}
-	err = ioutil.WriteFile(filepath.Join(configs.WorkDir, outFilename), outBytes, os.ModePerm)
+	err = os.WriteFile(filepath.Join(configs.WorkDir, outFilename), outBytes, os.ModePerm)
 	if err != nil {
 		log.Fatalln("save list err:", err)
 	}

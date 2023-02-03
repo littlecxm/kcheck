@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/littlecxm/kcheck/configs"
 	"github.com/urfave/cli/v2"
@@ -22,7 +21,7 @@ func main() {
 	app := &cli.App{
 		Name:    "makecheck",
 		Usage:   "make check list for kcheck",
-		Version: fmt.Sprintf("%s %s (built: %s)", version, commitID, buildDate),
+		Version: version,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "src",

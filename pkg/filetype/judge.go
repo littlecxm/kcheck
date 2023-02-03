@@ -6,7 +6,6 @@ import (
 	"errors"
 	"github.com/littlecxm/kcheck/configs"
 	"github.com/littlecxm/kcheck/pkg/fileutil"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,7 +44,7 @@ func GuessType(list string) (string, error) {
 	}
 
 	// detect type
-	rb, err := ioutil.ReadFile(list)
+	rb, err := os.ReadFile(list)
 	if err != nil {
 		return "", err
 	}

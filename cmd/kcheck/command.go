@@ -13,7 +13,7 @@ import (
 	"github.com/littlecxm/kcheck/pkg/reporter"
 	"github.com/littlecxm/kcheck/pkg/utils"
 	"github.com/urfave/cli/v2"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -22,7 +22,7 @@ import (
 )
 
 func commandHandler(c *cli.Context) error {
-	fmt.Printf("kcheck (%s)\n", version)
+	fmt.Sprintf("kcheck %s %s (built: %s)", version, commitID, buildDate)
 
 	var listPath string
 	if c.NArg() == 0 {
@@ -61,7 +61,7 @@ func commandHandler(c *cli.Context) error {
 		}
 	}
 
-	inByte, err := ioutil.ReadAll(f)
+	inByte, err := io.ReadAll(f)
 	if err != nil {
 		log.Fatalf("load file error: %s", err)
 	}
@@ -87,12 +87,12 @@ func commandHandler(c *cli.Context) error {
 		// check
 		listNode := doc.FindElement("list")
 		fCount = len(listNode.ChildElements())
-		hasher := md5.New()
+		h := md5.New()
 		for _, fNode := range listNode.SelectElements("file") {
 			dstPath := fNode.SelectElement("dst_path").Text()
 			dstMd5 := fNode.SelectElement("dst_md5").Text()
 			formatPath := strings.TrimPrefix(filepath.FromSlash(dstPath), string(os.PathSeparator))
-			if err := checksum.CheckByHash(formatPath, dstMd5, hasher); err != nil {
+			if err := checksum.CheckByHash(formatPath, dstMd5, h); err != nil {
 				failCount++
 				res <- &reporter.CheckResult{
 					Error: err,
@@ -115,7 +115,7 @@ func commandHandler(c *cli.Context) error {
 
 		metaCreateAt := time.Unix(0, metaStruct.CreatedAt*int64(time.Millisecond))
 		fCount = len(metaStruct.Files)
-		hasher := sha1.New()
+		h := sha1.New()
 		log.Println("metadata created at:", metaCreateAt)
 		for _, files := range metaStruct.Files {
 			fileSHA1 := files.SHA1
@@ -132,7 +132,7 @@ func commandHandler(c *cli.Context) error {
 				"data",
 				strings.TrimPrefix(filepath.FromSlash(filePath), string(os.PathSeparator)),
 			)
-			if err := checksum.CheckByHash(formatPath, fileSHA1, hasher); err != nil {
+			if err := checksum.CheckByHash(formatPath, fileSHA1, h); err != nil {
 				failCount++
 				res <- &reporter.CheckResult{
 					Error: err,
@@ -152,11 +152,11 @@ func commandHandler(c *cli.Context) error {
 		}
 		metaCreateAt := time.Unix(0, kcheckList.CreatedAt*int64(time.Millisecond))
 		fCount = len(kcheckList.Files)
-		hasher := sha1.New()
+		h := sha1.New()
 		fmt.Println("KCheck list created at:", metaCreateAt)
 		for _, files := range kcheckList.Files {
 			formatPath := strings.TrimPrefix(filepath.FromSlash(files.Path), string(os.PathSeparator))
-			if err := checksum.CheckByHash(formatPath, files.SHA1, hasher); err != nil {
+			if err := checksum.CheckByHash(formatPath, files.SHA1, h); err != nil {
 				failCount++
 				res <- &reporter.CheckResult{
 					Error: err,
