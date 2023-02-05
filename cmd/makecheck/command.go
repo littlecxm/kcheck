@@ -39,7 +39,7 @@ func commandHandler(c *cli.Context) error {
 		if strings.Contains(strings.ToLower(fi.Name()), ".ds_store") {
 			return nil
 		}
-		srcPath := filepath.ToSlash(strings.TrimPrefix(strings.Replace(filePath, srcDir, "", -1), string(filepath.Separator)))
+		srcPath := filepath.ToSlash(strings.TrimPrefix(strings.TrimPrefix(filePath, srcDir), string(filepath.Separator)))
 		if !fi.Mode().IsRegular() {
 			return nil
 		}
