@@ -1,11 +1,11 @@
-package filetype
+package formatType
 
 import (
 	"bufio"
 	"encoding/binary"
 	"errors"
 	"github.com/littlecxm/kcheck/configs"
-	"github.com/littlecxm/kcheck/pkg/fileutil"
+	"github.com/littlecxm/kcheck/pkg/utils"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,7 +23,7 @@ func getDefaultPaths() []string {
 // GuessListPath get the relative path of the list file
 func GuessListPath() (string, error) {
 	for _, p := range getDefaultPaths() {
-		if fileutil.FileExists(p) {
+		if utils.FileExists(p) {
 			return p, nil
 		}
 	}

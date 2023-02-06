@@ -20,11 +20,12 @@ type MetaData struct {
 
 type KCheckList struct {
 	CreatedAt int64         `json:"createdAt"`
+	Version   string        `json:"version"`
 	Files     []KCheckFiles `json:"files"`
 }
 
 type KCheckFiles struct {
-	Path string `json:"path"`
-	SHA1 string `json:"sha1"`
-	Size int64  `json:"size"`
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256"`
+	Size   int64  `json:"size"`
 }
