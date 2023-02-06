@@ -55,6 +55,7 @@ func commandHandler(c *cli.Context) error {
 
 		f, err := os.Open(absPath)
 		if err != nil {
+			failCount++
 			return err
 		}
 		defer f.Close()
