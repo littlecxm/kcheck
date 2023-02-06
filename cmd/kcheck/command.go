@@ -3,13 +3,14 @@ package main
 import (
 	"crypto/md5"
 	"crypto/sha1"
+	"crypto/sha256"
 	"fmt"
 	"github.com/beevik/etree"
 	"github.com/fatih/color"
 	"github.com/littlecxm/kbinxml-go"
 	"github.com/littlecxm/kcheck/configs"
 	"github.com/littlecxm/kcheck/pkg/checksum"
-	"github.com/littlecxm/kcheck/pkg/filetype"
+	"github.com/littlecxm/kcheck/pkg/formatType"
 	"github.com/littlecxm/kcheck/pkg/reporter"
 	"github.com/littlecxm/kcheck/pkg/utils"
 	"github.com/urfave/cli/v2"
@@ -26,7 +27,7 @@ func commandHandler(c *cli.Context) error {
 
 	var listPath string
 	if c.NArg() == 0 {
-		guessListPath, err := filetype.GuessListPath()
+		guessListPath, err := formatType.GuessListPath()
 		if err != nil {
 			fmt.Println("use", color.GreenString("help"), "to get more info")
 			os.Exit(-1)
@@ -52,7 +53,7 @@ func commandHandler(c *cli.Context) error {
 	}()
 
 	if listType == "" {
-		listType, err = filetype.GuessType(listPath)
+		listType, err = formatType.GuessType(listPath)
 		if err != nil {
 			log.Fatalf("get list type error: %s", err)
 		}
@@ -152,11 +153,14 @@ func commandHandler(c *cli.Context) error {
 		}
 		metaCreateAt := time.Unix(0, kcheckList.CreatedAt*int64(time.Millisecond))
 		fCount = len(kcheckList.Files)
-		h := sha1.New()
+		h := sha256.New()
 		fmt.Println("KCheck list created at:", metaCreateAt)
 		for _, files := range kcheckList.Files {
-			formatPath := strings.TrimPrefix(filepath.FromSlash(files.Path), string(os.PathSeparator))
-			if err := checksum.CheckByHash(formatPath, files.SHA1, h); err != nil {
+			formatPath := filepath.Join(
+				configs.WorkDir,
+				strings.TrimPrefix(filepath.FromSlash(files.Path), string(os.PathSeparator)),
+			)
+			if err := checksum.CheckByHash(formatPath, files.SHA256, h); err != nil {
 				failCount++
 				res <- &reporter.CheckResult{
 					Error: err,

@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"github.com/littlecxm/kcheck/configs"
-	"github.com/littlecxm/kcheck/pkg/fileutil"
+	"github.com/littlecxm/kcheck/pkg/utils"
 	"hash"
 	"io"
 	"os"
@@ -18,7 +18,7 @@ func CheckByHash(relativePath, hashStr string, h hash.Hash) error {
 	}()
 
 	fPath := filepath.Join(configs.WorkDir, relativePath)
-	if !fileutil.FileExists(fPath) {
+	if !utils.FileExists(fPath) {
 		return errors.New("NOT FOUND")
 	}
 
@@ -35,7 +35,10 @@ func CheckByHash(relativePath, hashStr string, h hash.Hash) error {
 		return errors.New("failed copy buffer")
 	}
 
-	byteHash, _ := hex.DecodeString(hashStr)
+	byteHash, err := hex.DecodeString(hashStr)
+	if err != nil {
+		return errors.New("cannot decode hash string")
+	}
 	if bytes.Compare(h.Sum(nil), byteHash) != 0 {
 		return errors.New("CHECK FAIL")
 	}

@@ -20,8 +20,8 @@
 *dist/*
 *.exe
 *.bat
-kcheck
-makecheck
+/kcheck
+/makecheck
 
 # custom
 *.xml

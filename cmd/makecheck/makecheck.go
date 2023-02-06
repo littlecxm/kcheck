@@ -38,7 +38,7 @@ func main() {
 			},
 			&cli.BoolFlag{
 				Name:        "indent",
-				Aliases:     []string{"ind"},
+				Aliases:     []string{"idt"},
 				Value:       false,
 				Usage:       "enable indent for output list",
 				Destination: &isIndent,
