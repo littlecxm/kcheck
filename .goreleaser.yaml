@@ -26,8 +26,8 @@ builds:
       - -s -w -X main.version=v{{.Version}} -X main.commitID={{.ShortCommit}} -X main.buildDate={{.Date}}
 
 archives:
-  - id: "updater-archive"
-    builds: [ "updater" ]
+  - id: "kcheck-archive"
+    builds: [ "kcheck" ]
     name_template: >-
       {{ .Binary }}_
       {{- title .Os }}_
@@ -39,8 +39,8 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
-  - id: "updater-tool-archive"
-    builds: [ "updater-tool" ]
+  - id: "makecheck-archive"
+    builds: [ "makecheck" ]
     name_template: >-
       {{ .Binary }}_
       {{- title .Os }}_
