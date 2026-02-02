@@ -1,4 +1,4 @@
-package formatType
+package format
 
 import (
 	"bufio"

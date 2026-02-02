@@ -4,18 +4,20 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
-	"github.com/littlecxm/kcheck/configs"
-	"github.com/littlecxm/kcheck/pkg/utils"
 	"hash"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/littlecxm/kcheck/configs"
+	"github.com/littlecxm/kcheck/pkg/utils"
 )
 
-func CheckByHash(relativePath, hashStr string, h hash.Hash) error {
-	defer func() {
-		h.Reset()
-	}()
+func checkByHash(relativePath, hashStr string, newHash func() hash.Hash) error {
+	h := newHash()
+	if h == nil {
+		return errors.New("hash unavailable")
+	}
 
 	fPath := filepath.Join(configs.WorkDir, relativePath)
 	if !utils.FileExists(fPath) {

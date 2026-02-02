@@ -4,16 +4,17 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/littlecxm/kcheck/configs"
-	"github.com/littlecxm/kcheck/pkg/reporter"
-	"github.com/littlecxm/kcheck/pkg/utils"
-	"github.com/urfave/cli/v2"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/littlecxm/kcheck/configs"
+	"github.com/littlecxm/kcheck/pkg/reporter"
+	"github.com/littlecxm/kcheck/pkg/utils"
+	"github.com/urfave/cli/v2"
 )
 
 func commandHandler(c *cli.Context) error {
@@ -24,14 +25,12 @@ func commandHandler(c *cli.Context) error {
 	if c.NArg() == 0 {
 		cli.ShowAppHelpAndExit(c, 0)
 	}
-	if c.NArg() > 0 {
+	if c.NArg() > 0 && srcDir == "" {
 		srcDir = c.Args().Get(0)
 	}
 
 	var kcheckList configs.KCheckList
-	res := make(chan *reporter.CheckResult, 999)
-
-	go reporter.Handler("failed_make.list", res)
+	reporter.Init("failed.list")
 
 	kcheckList.CreatedAt = time.Now().Unix()
 	kcheckList.Version = builtVer
@@ -62,12 +61,9 @@ func commandHandler(c *cli.Context) error {
 
 		h := sha256.New()
 		if _, err := io.Copy(h, f); err != nil {
-			res <- &reporter.CheckResult{
-				Error: err,
-				Path:  srcPath,
-			}
 			failCount++
 			utils.PrintStatus(false, srcPath)
+			reporter.WriteResult(utils.Result{Error: err, Path: srcPath})
 			return err
 		} else {
 			passCount++
@@ -102,6 +98,7 @@ func commandHandler(c *cli.Context) error {
 	if failCount == 0 {
 		os.Remove(filepath.Join(configs.WorkDir, "failed_make.list"))
 	}
+	reporter.Close()
 
 	fmt.Println("--------")
 	fmt.Printf(

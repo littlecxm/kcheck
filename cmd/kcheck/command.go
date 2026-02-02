@@ -5,21 +5,23 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"fmt"
-	"github.com/beevik/etree"
-	"github.com/fatih/color"
-	"github.com/littlecxm/kbinxml-go"
-	"github.com/littlecxm/kcheck/configs"
-	"github.com/littlecxm/kcheck/pkg/checksum"
-	"github.com/littlecxm/kcheck/pkg/formatType"
-	"github.com/littlecxm/kcheck/pkg/reporter"
-	"github.com/littlecxm/kcheck/pkg/utils"
-	"github.com/urfave/cli/v2"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/beevik/etree"
+	"github.com/fatih/color"
+	"github.com/littlecxm/kbinxml-go"
+	"github.com/littlecxm/kcheck/configs"
+	"github.com/littlecxm/kcheck/pkg/checksum"
+	"github.com/littlecxm/kcheck/pkg/format"
+	"github.com/littlecxm/kcheck/pkg/reporter"
+	"github.com/littlecxm/kcheck/pkg/utils"
+	"github.com/urfave/cli/v2"
 )
 
 func commandHandler(c *cli.Context) error {
@@ -27,7 +29,7 @@ func commandHandler(c *cli.Context) error {
 
 	var listPath string
 	if c.NArg() == 0 {
-		guessListPath, err := formatType.GuessListPath()
+		guessListPath, err := format.GuessListPath()
 		if err != nil {
 			fmt.Println("use", color.GreenString("help"), "to get more info")
 			os.Exit(-1)
@@ -53,7 +55,7 @@ func commandHandler(c *cli.Context) error {
 	}()
 
 	if listType == "" {
-		listType, err = formatType.GuessType(listPath)
+		listType, err = format.GuessType(listPath)
 		if err != nil {
 			log.Fatalf("get list type error: %s", err)
 		}
@@ -66,11 +68,9 @@ func commandHandler(c *cli.Context) error {
 	if err != nil {
 		log.Fatalf("load file error: %s", err)
 	}
-
-	// report handler
-	res := make(chan *reporter.CheckResult, 999)
-	go reporter.Handler("failed.list", res)
+	var fileInfos []utils.FileInfo
 	var fCount, passCount, failCount = 0, 0, 0
+
 	switch listType {
 	case configs.KBinType:
 		kxml, _, err := kbinxml.DeserializeKbin(inByte)
@@ -88,24 +88,13 @@ func commandHandler(c *cli.Context) error {
 		// check
 		listNode := doc.FindElement("list")
 		fCount = len(listNode.ChildElements())
-		h := md5.New()
+		hashFactory := md5.New
 		for _, fNode := range listNode.SelectElements("file") {
 			dstPath := fNode.SelectElement("dst_path").Text()
 			dstMd5 := fNode.SelectElement("dst_md5").Text()
 			formatPath := strings.TrimPrefix(filepath.FromSlash(dstPath), string(os.PathSeparator))
-			if err := checksum.CheckByHash(formatPath, dstMd5, h); err != nil {
-				failCount++
-				res <- &reporter.CheckResult{
-					Error: err,
-					Path:  formatPath,
-				}
-				utils.PrintStatus(false, formatPath)
-			} else {
-				passCount++
-				utils.PrintStatus(true, formatPath)
-			}
+			fileInfos = append(fileInfos, utils.FileInfo{Path: formatPath, FileHash: dstMd5, NewHash: hashFactory})
 		}
-		close(res)
 
 	case configs.MetadataType:
 		var metaStruct configs.MetaData
@@ -116,7 +105,7 @@ func commandHandler(c *cli.Context) error {
 
 		metaCreateAt := time.Unix(0, metaStruct.CreatedAt*int64(time.Millisecond))
 		fCount = len(metaStruct.Files)
-		h := sha1.New()
+		hashFactory := sha1.New
 		log.Println("metadata created at:", metaCreateAt)
 		for _, files := range metaStruct.Files {
 			fileSHA1 := files.SHA1
@@ -133,17 +122,7 @@ func commandHandler(c *cli.Context) error {
 				"data",
 				strings.TrimPrefix(filepath.FromSlash(filePath), string(os.PathSeparator)),
 			)
-			if err := checksum.CheckByHash(formatPath, fileSHA1, h); err != nil {
-				failCount++
-				res <- &reporter.CheckResult{
-					Error: err,
-					Path:  formatPath,
-				}
-				utils.PrintStatus(false, formatPath)
-			} else {
-				passCount++
-				utils.PrintStatus(true, formatPath)
-			}
+			fileInfos = append(fileInfos, utils.FileInfo{Path: formatPath, FileHash: fileSHA1, NewHash: hashFactory})
 		}
 
 	case configs.KCheckType:
@@ -153,29 +132,64 @@ func commandHandler(c *cli.Context) error {
 		}
 		metaCreateAt := time.Unix(0, kcheckList.CreatedAt*int64(time.Millisecond))
 		fCount = len(kcheckList.Files)
-		h := sha256.New()
+		hashFactory := sha256.New
 		fmt.Println("KCheck list created at:", metaCreateAt)
 		for _, files := range kcheckList.Files {
 			formatPath := filepath.Join(
 				configs.WorkDir,
 				strings.TrimPrefix(filepath.FromSlash(files.Path), string(os.PathSeparator)),
 			)
-			if err := checksum.CheckByHash(formatPath, files.SHA256, h); err != nil {
-				failCount++
-				res <- &reporter.CheckResult{
-					Error: err,
-					Path:  formatPath,
-				}
-				utils.PrintStatus(false, formatPath)
-			} else {
-				passCount++
-				utils.PrintStatus(true, formatPath)
-			}
+			fileInfos = append(fileInfos, utils.FileInfo{Path: formatPath, FileHash: files.SHA256, NewHash: hashFactory})
 		}
 
 	default:
 		log.Fatalf("unknown type: %s", listType)
 	}
+
+	// report handler
+	reporter.Init("failed.list")
+	res := make(chan utils.Result)
+
+	// done
+	done := make(chan struct{})
+	defer close(done)
+
+	// fan in file paths
+	paths := make(chan utils.FileInfo)
+	go func() {
+		for _, info := range fileInfos {
+			paths <- info
+		}
+		close(paths)
+	}()
+
+	// consumer
+	var wg sync.WaitGroup
+	const numDigesters = 5
+	wg.Add(numDigesters)
+	for i := 0; i < numDigesters; i++ {
+		go func() {
+			checksum.Digester(done, paths, res)
+			wg.Done()
+		}()
+	}
+	// solve result err
+	go func() {
+		wg.Wait()
+		close(res)
+	}()
+
+	for r := range res {
+		if r.Error != nil {
+			failCount++
+			utils.PrintStatus(false, r.Path)
+			reporter.WriteResult(r)
+		} else {
+			passCount++
+			utils.PrintStatus(true, r.Path)
+		}
+	}
+	reporter.Close()
 
 	fmt.Printf(
 		"Finished.\n"+

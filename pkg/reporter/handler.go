@@ -5,28 +5,39 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/littlecxm/kcheck/pkg/utils"
 )
 
-type CheckResult struct {
-	Success bool
-	Error   error
-	Path    string
-}
+var file *os.File
+var dataWriter *bufio.Writer
 
-func Handler(path string, res chan *CheckResult) {
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+func Init(path string) {
+	var err error
+	file, err = os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		log.Fatalf("failed to create result log: %s", err)
 	}
-	defer func() {
-		_ = file.Close()
-	}()
+	dataWriter = bufio.NewWriter(file)
+}
 
-	dataWriter := bufio.NewWriter(file)
-	for r := range res {
-		_, _ = dataWriter.WriteString(fmt.Sprintf("[%s]: %s\n", r.Error, r.Path))
-		if err := dataWriter.Flush(); err != nil {
-			log.Fatal("fatal flush buf: ", err)
-		}
+// WriteResult appends a result entry to the report file.
+func WriteResult(r utils.Result) {
+	if dataWriter == nil {
+		return
+	}
+	_, _ = dataWriter.WriteString(fmt.Sprintf("[%v]: %s\n", r.Error, r.Path))
+	if err := dataWriter.Flush(); err != nil {
+		log.Fatal("fatal flush buf: ", err)
+	}
+}
+
+// Close flushes and closes the report file.
+func Close() {
+	if dataWriter != nil {
+		_ = dataWriter.Flush()
+	}
+	if file != nil {
+		_ = file.Close()
 	}
 }
